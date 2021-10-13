@@ -336,25 +336,11 @@ class CtpMdApi(MdApi):
         )
 
         if data["BidVolume2"] or data["AskVolume2"]:
-            tick.bid_price_2 = adjust_price(data["BidPrice2"])
-            tick.bid_price_3 = adjust_price(data["BidPrice3"])
-            tick.bid_price_4 = adjust_price(data["BidPrice4"])
-            tick.bid_price_5 = adjust_price(data["BidPrice5"])
-
-            tick.ask_price_2 = adjust_price(data["AskPrice2"])
-            tick.ask_price_3 = adjust_price(data["AskPrice3"])
-            tick.ask_price_4 = adjust_price(data["AskPrice4"])
-            tick.ask_price_5 = adjust_price(data["AskPrice5"])
-
-            tick.bid_volume_2 = data["BidVolume2"]
-            tick.bid_volume_3 = data["BidVolume3"]
-            tick.bid_volume_4 = data["BidVolume4"]
-            tick.bid_volume_5 = data["BidVolume5"]
-
-            tick.ask_volume_2 = data["AskVolume2"]
-            tick.ask_volume_3 = data["AskVolume3"]
-            tick.ask_volume_4 = data["AskVolume4"]
-            tick.ask_volume_5 = data["AskVolume5"]
+            for i in range(2, 21):
+                setattr(f"tick.bid_price_{i}", adjust_price(data[f"BidPrice{i}"]))
+                setattr(f"tick.ask_price_{i}", adjust_price(data[f"AskPrice{i}"]))
+                setattr(f"tick.bid_volume_{i}", data[f"BidVolume{i}"])
+                setattr(f"tick.ask_volume_{i}", data[f"AskVolume{i}"])
 
         self.gateway.on_tick(tick)
 
@@ -877,5 +863,5 @@ class CtpTdApi(TdApi):
 def adjust_price(price: float) -> float:
     """将异常的浮点数最大值（MAX_FLOAT）数据调整为0"""
     if price == MAX_FLOAT:
-        price = 0
+        price = 0.0
     return price
