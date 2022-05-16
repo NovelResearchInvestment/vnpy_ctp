@@ -26,6 +26,8 @@ from vnpy.trader.object import (
     OrderRequest,
     CancelRequest,
     SubscribeRequest,
+    ResponseContainer,
+    SettlementData,
 )
 from vnpy.trader.utility import get_folder_path
 from vnpy.trader.event import EVENT_TIMER
@@ -151,12 +153,14 @@ class CtpGateway(BaseGateway):
 
     exchanges: List[str] = list(EXCHANGE_CTP2VT.values())
 
+
     def __init__(self, event_engine: EventEngine, gateway_name: str) -> None:
         """构造函数"""
         super().__init__(event_engine, gateway_name)
 
         self.td_api: "CtpTdApi" = CtpTdApi(self)
         self.md_api: "CtpMdApi" = CtpMdApi(self)
+        self.container = ResponseContainer()
 
     def connect(self, setting: dict) -> None:
         """连接交易接口"""
@@ -207,6 +211,10 @@ class CtpGateway(BaseGateway):
         """查询持仓"""
         self.td_api.query_position()
 
+    def query_settlement(self, date: str) -> None:
+        """查询日结算单"""
+        self.td_api.query_settlement_info(date=date)
+
     def close(self) -> None:
         """关闭接口"""
         self.td_api.close()
@@ -235,7 +243,12 @@ class CtpGateway(BaseGateway):
     def init_query(self) -> None:
         """初始化查询任务"""
         self.count: int = 0
-        self.query_functions: list = [self.query_account, self.query_position]
+        self.query_functions: list = [
+            self.query_account, 
+            self.query_position,
+            # self.query_history,
+            # self.query_settlement,
+        ]
         self.event_engine.register(EVENT_TIMER, self.process_timer_event)
 
 
@@ -408,6 +421,7 @@ class CtpTdApi(TdApi):
         self.login_failed: bool = False
         self.auth_failed: bool = False
         self.contract_inited: bool = False
+        self.settlement_loaded: bool = False
 
         self.userid: str = ""
         self.password: str = ""
@@ -492,6 +506,28 @@ class CtpTdApi(TdApi):
     def onRspOrderAction(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """委托撤单失败回报"""
         self.gateway.write_error("交易撤单失败", error)
+
+    def onRspQrySettlementInfo(self, data: dict, error: dict, reqid: int, last: bool) -> None:
+        """日結算單查询回报"""
+        if data:
+            settlement: SettlementData = SettlementData(
+                vt_reqid=reqid,
+                gateway_name = self.gateway.gateway_name,
+                # TradingDay=data["TradingDay"],
+                TradingDay=self.SettlementQryDate,
+                SettlementID=data["SettlementID"],
+                BrokerID=data["BrokerID"],
+                InvestorID=data["InvestorID"],
+                SequenceNo=data["SequenceNo"],
+                Content=data["Content"],
+            )
+            self.gateway.on_settlement_info(settlement)
+
+        if last:
+            self.gateway.on_settlement_info({})
+            self.settlement_loaded = True
+            self.SettlementQryDate = ""
+
 
     def onRspSettlementInfoConfirm(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """确认结算单回报"""
@@ -578,6 +614,8 @@ class CtpTdApi(TdApi):
         account.available = data["Available"]
 
         self.gateway.on_account(account)
+
+
 
     def onRspQryInstrument(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """合约查询回报"""
@@ -820,7 +858,10 @@ class CtpTdApi(TdApi):
     def query_account(self) -> None:
         """查询资金"""
         self.reqid += 1
-        self.reqQryTradingAccount({}, self.reqid)
+        result = self.reqQryTradingAccount({}, self.reqid)
+        if result == 0:
+            self.query_account_ok = 0
+        return result
 
     def query_position(self) -> None:
         """查询持仓"""
@@ -833,7 +874,35 @@ class CtpTdApi(TdApi):
         }
 
         self.reqid += 1
-        self.reqQryInvestorPosition(ctp_req, self.reqid)
+        result = self.reqQryInvestorPosition(ctp_req, self.reqid)
+        if result == 0:
+            self.query_position_ok = 0
+        return result
+
+    def query_settlement_info(self, date: str, wait: float = 1.0) -> None:
+        """查询日结单"""
+
+        if not self.settlement_loaded:
+            self.SettlementQryDate = date
+            ctp_req: dict = {
+                "BrokerID": self.brokerid,
+                "InvestorID": self.userid,
+                "TradingDay": self.SettlementQryDate,
+            }
+            self.reqid += 1
+            result = self.reqQrySettlementInfo(ctp_req, self.reqid)
+            while not self.settlement_loaded:
+                self.gateway.write_log(f"结算信息[{self.reqid}-{result}]：正在查询")
+                sleep(wait)
+            self.gateway.write_log(f"结算信息[{self.reqid}-{result}]：查询成功")
+            if result == 0:
+                self.query_settlement_info_ok = 0
+                self.settlement_loaded = False
+        else:
+            result = -1
+            print("Last request for settlement info is not complete.")
+        return result
+
 
     def close(self) -> None:
         """关闭连接"""
