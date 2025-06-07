@@ -258,3 +258,53 @@ void processRspQryRiskSettleInvstPosition(Task *task);
 
 void processRspQryRiskSettleProductStatus(Task *task);
 
+void processRspQrySPBMFutureParameter(Task *task);
+
+void processRspQrySPBMOptionParameter(Task *task);
+
+void processRspQrySPBMIntraParameter(Task *task);
+
+void processRspQrySPBMInterParameter(Task *task);
+
+void processRspQrySPBMPortfDefinition(Task *task);
+
+void processRspQrySPBMInvestorPortfDef(Task *task);
+
+void processRspQryInvestorPortfMarginRatio(Task *task);
+
+void processRspQryInvestorProdSPBMDetail(Task *task);
+
+void processRspQryInvestorCommoditySPMMMargin(Task *task);
+
+void processRspQryInvestorCommodityGroupSPMMMargin(Task *task);
+
+void processRspQrySPMMInstParam(Task *task);
+
+void processRspQrySPMMProductParam(Task *task);
+
+void processRspQrySPBMAddprocessInterParameter(Task *task);
+
+void processRspQryRCAMSCombProductInfo(Task *task);
+
+void processRspQryRCAMSInstrParameter(Task *task);
+
+void processRspQryRCAMSIntraParameter(Task *task);
+
+void processRspQryRCAMSInterParameter(Task *task);
+
+void processRspQryRCAMSShortOptAdjustParam(Task *task);
+
+void processRspQryRCAMSInvestorCombPosition(Task *task);
+
+void processRspQryInvestorProdRCAMSMargin(Task *task);
+
+void processRspQryRULEInstrParameter(Task *task);
+
+void processRspQryRULEIntraParameter(Task *task);
+
+void processRspQryRULEInterParameter(Task *task);
+
+void processRspQryInvestorProdRULEMargin(Task *task);
+
+void processRspQryInvestorPortfSetting(Task *task);
+
